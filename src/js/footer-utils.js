@@ -35,6 +35,7 @@ function createSpecialFooter() {
         | <a href="rank.html" style="color: #0066cc; text-decoration: underline;">rankings</a>
         | <a href="fishtanks.html" id="my-tanks-link" style="color: #0066cc; text-decoration: underline;">my tanks</a>
         | <a href="login.html" id="auth-link" style="color: #0066cc; text-decoration: underline;">login</a>
+        | <a href="admin.html" style="color: #0066cc; text-decoration: underline;">admin</a>
         <br><br>
         Made with <span style="color:#e25555;">hate</span> by <a href="https://fifteen.games" style="color: #0066cc; text-decoration: underline;">fifteen.games</a> | 
         <a href="https://github.com/aldenhallak/fishes" style="color: #0066cc; text-decoration: underline;">Source Code</a> | 
