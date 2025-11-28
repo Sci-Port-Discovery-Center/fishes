@@ -144,17 +144,8 @@ async function submitFish(artist, needsModeration = false) {
             localStorage.setItem('lastFishDate', today);
             localStorage.setItem('userId', result.data.userId);
 
-            // Show success message based on moderation status
-            if (needsModeration) {
-                showModal(`<div style='text-align:center;'>
-                    <h1>Fish Submitted for Review</div>
-                    <div>Your fish has been submitted and will appear in the tank once it passes moderator review.</div>
-                    <button onclick="window.location.href='tank.html'">View Tank</button>
-                </div>`, () => {});
-            } else {
-                // Regular fish - go directly to tank
-                window.location.href = 'tank.html';
-            }
+            // Redirect to the tank for both moderated and regular submissions
+            window.location.href = 'tank.html';
 
             submissionSuccess = true;
         } else {
