@@ -432,6 +432,8 @@ function loadFishImageToTank(imgUrl, fishData, onDone) {
 // Global variable to track the newest fish timestamp and listener
 let newestFishTimestamp = null;
 let newFishListener = null;
+let tankAutoRefreshInterval = null;
+const TANK_AUTO_REFRESH_MS = 60000;
 let maxTankCapacity = 50; // Dynamic tank capacity controlled by slider
 let isUpdatingCapacity = false; // Prevent multiple simultaneous updates
 
@@ -843,6 +845,20 @@ function setupNewFishListener() {
     }, 30000); // Poll every 30 seconds
 }
 
+function clearTankAutoRefreshInterval() {
+    if (tankAutoRefreshInterval) {
+        clearInterval(tankAutoRefreshInterval);
+        tankAutoRefreshInterval = null;
+    }
+}
+
+function startTankAutoRefresh(sortType) {
+    clearTankAutoRefreshInterval();
+    tankAutoRefreshInterval = setInterval(() => {
+        loadFishIntoTank(sortType, true);
+    }, TANK_AUTO_REFRESH_MS);
+}
+
 // Check for new fish using backend API instead of real-time listener
 async function checkForNewFish() {
     try {
@@ -960,13 +976,20 @@ async function checkForNewFish() {
 }
 
 // Combined function to load tank with streaming capability
-async function loadFishIntoTank(sortType = 'recent') {
+async function loadFishIntoTank(sortType = 'recent', skipAutoRefreshSetup = false) {
     // Load initial fish
     await loadInitialFish(sortType);
 
     // Set up real-time listener for new fish (only for recent mode)
     if (sortType === 'recent') {
         setupNewFishListener();
+    } else if (newFishListener) {
+        clearInterval(newFishListener);
+        newFishListener = null;
+    }
+
+    if (!skipAutoRefreshSetup) {
+        startTankAutoRefresh(sortType);
     }
 }
 
@@ -1010,6 +1033,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             clearInterval(newFishListener);
             newFishListener = null;
         }
+        clearTankAutoRefreshInterval();
 
         loadFishIntoTank(selectedSort);
 
@@ -1069,6 +1093,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             clearInterval(newFishListener);
             newFishListener = null;
         }
+        clearTankAutoRefreshInterval();
     });
 });
 
