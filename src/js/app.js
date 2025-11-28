@@ -846,21 +846,4 @@ function showWelcomeBackMessage() {
 document.addEventListener('DOMContentLoaded', () => {
     // Show welcome back message for returning users
     showWelcomeBackMessage();
-    
-    const today = new Date().toDateString();
-    const lastFishDate = localStorage.getItem('lastFishDate');
-    console.log(`Last fish date: ${lastFishDate}, Today: ${today}`);
-    if (lastFishDate === today) {
-        showModal(`<div style='text-align:center;'>You already drew a fish today!<br><br>
-            <button id='go-to-tank' style='padding:8px 16px; margin: 0 5px;'>Take me to fishtank</button>
-            <button id='draw-another' style='padding:8px 16px; margin: 0 5px;'>I want to draw another fish</button></div>`, () => { });
-        
-        document.getElementById('go-to-tank').onclick = () => {
-            window.location.href = 'tank.html';
-        };
-        
-        document.getElementById('draw-another').onclick = () => {
-            document.querySelector('div[style*="z-index: 9999"]')?.remove();
-        };
-    }
 });
