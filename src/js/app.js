@@ -148,11 +148,18 @@ async function submitFish(artist, needsModeration = false) {
             const successMessage = needsModeration
                 ? 'Thanks! Your fish will appear once it is reviewed.'
                 : 'Great swim! Your fish is headed to the tank soon.';
-            updateProbabilityDisplay({ message: successMessage });
+            const successCta = {
+                label: 'View the tank',
+                href: 'tank.html'
+            };
+            updateProbabilityDisplay({
+                message: successMessage,
+                messageColor: '#218838',
+                cta: successCta
+            });
 
             resetDrawingState();
             submissionSuccess = true;
-            window.location.href = 'tank.html';
         } else {
             alert('Sorry, there was a problem uploading your fish. Please try again.');
         }
@@ -655,11 +662,26 @@ function getProbabilityDiv() {
     return probDiv;
 }
 
-function updateProbabilityDisplay({ fishProbability, isFish, message }) {
+function updateProbabilityDisplay({ fishProbability, isFish, message, messageColor, cta }) {
     const probDiv = getProbabilityDiv();
     if (message) {
-        probDiv.textContent = message;
-        probDiv.style.color = '#c0392b';
+        probDiv.textContent = '';
+
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message;
+        probDiv.appendChild(messageSpan);
+
+        if (cta && cta.label && cta.href) {
+            const ctaLink = document.createElement('a');
+            ctaLink.href = cta.href;
+            ctaLink.textContent = cta.label;
+            ctaLink.style.marginLeft = '8px';
+            ctaLink.style.fontWeight = 'bold';
+            ctaLink.style.textDecoration = 'underline';
+            probDiv.appendChild(ctaLink);
+        }
+
+        probDiv.style.color = messageColor || '#c0392b';
         return;
     }
     probDiv.textContent = `Fish probability: ${(fishProbability * 100).toFixed(1)}%`;
