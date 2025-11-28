@@ -12,9 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const HOST = process.env.HOST || '0.0.0.0';
-const PUBLIC_HOST = process.env.PUBLIC_HOST || 'localhost';
-const BASE_URL = process.env.BASE_URL || `http://${PUBLIC_HOST}:${PORT}`;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const DATA_FILE = path.join(__dirname, 'data', 'data.json');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
@@ -306,7 +304,6 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-app.listen(PORT, HOST, () => {
-  const hostLabel = HOST === '0.0.0.0' ? 'localhost' : HOST;
-  console.log(`Local backend running at http://${hostLabel}:${PORT} (public URL: ${BASE_URL})`);
+app.listen(PORT, () => {
+  console.log(`Local backend running on ${BASE_URL}`);
 });

@@ -6,8 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev:server": "node index.js",
-    "dev:frontend": "node static-server.js"
+    "dev:server": "node index.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

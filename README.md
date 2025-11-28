@@ -126,13 +126,9 @@ For offline testing you can run the bundled lightweight Node server that mimics 
 
 1. `cd server`
 2. `npm install` (installs Express, multer, etc.)
-3. `HOST=0.0.0.0 PUBLIC_HOST=$(hostname -I | awk '{print $1}') npm run dev:server`
+3. `npm run dev:server`
 
-This starts a backend on `http://localhost:8080` (or `PUBLIC_HOST` if you set it) that supports uploads, fish listing, voting, reports, and the authentication flows used on the login/reset pages. When you load the frontend from `localhost` or another device on the same network, `src/js/fish-utils.js` automatically points `BACKEND_URL` at your machine (private IP + port 8080); you can also override it by setting `window.BACKEND_URL` or a `BACKEND_URL` entry in `localStorage`.
-
-The server persists uploads to `server/uploads/` and keeps its lightweight JSON database in `server/data/`. Both directories are ignored by Git and created on demand the first time you run the backend.
-
-To serve the static frontend over Node instead of Python, run `npm run dev:frontend` from `server/`. By default it binds to `0.0.0.0:3000`, so other devices on your LAN (e.g., iPads) can load the site using `http://<your-lan-ip>:3000` while the backend stays on port 8080.
+This starts a backend on `http://localhost:8080` that supports uploads, fish listing, voting, reports, and the authentication flows used on the login/reset pages. When you load the frontend from `localhost`, `src/js/fish-utils.js` automatically points `BACKEND_URL` at this local server; you can also override it by setting `window.BACKEND_URL` or a `BACKEND_URL` entry in `localStorage`.
 
 ## Credits
 - AI model and training: [fish-trainer](https://github.com/aldenhallak/fish-trainer)
