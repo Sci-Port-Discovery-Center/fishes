@@ -24,8 +24,13 @@ const urlParams = new URLSearchParams(window.location.search);
 const forceLocal = urlParams.get('local') === 'true';
 const forceProd = urlParams.get('prod') === 'true';
 
+const configuredBackend = (typeof window !== 'undefined' && window.BACKEND_URL)
+    || (typeof localStorage !== 'undefined' && localStorage.getItem('BACKEND_URL'));
+
 let BACKEND_URL;
-if (forceLocal) {
+if (configuredBackend) {
+    BACKEND_URL = configuredBackend;
+} else if (forceLocal) {
     BACKEND_URL = 'http://localhost:8080';
 } else if (forceProd) {
     BACKEND_URL = 'https://fishes-be-571679687712.northamerica-northeast1.run.app';
