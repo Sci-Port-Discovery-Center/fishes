@@ -152,6 +152,7 @@ async function submitFish(artist, needsModeration = false) {
 
             resetDrawingState();
             submissionSuccess = true;
+            window.location.href = 'tank.html';
         } else {
             alert('Sorry, there was a problem uploading your fish. Please try again.');
         }
@@ -665,9 +666,14 @@ function updateProbabilityDisplay({ fishProbability, isFish, message }) {
     probDiv.style.color = isFish ? '#218838' : '#c0392b';
 }
 
+function isSafariBrowser() {
+    const ua = navigator.userAgent || '';
+    return /Safari/i.test(ua) && !/Chrome/i.test(ua);
+}
+
 // Updated verifyFishDoodle function to match new model output format
 async function verifyFishDoodle(canvas) {
-    const isSafari = /Safari/i.test(navigator.userAgent || '') && !/Chrome/i.test(navigator.userAgent || '');
+    const isSafari = isSafariBrowser();
     try {
         // Ensure model is ready before running inference
         if (!ortSession) {
@@ -756,8 +762,7 @@ async function checkFishAfterStroke() {
             console.log('ONNX Runtime loaded, starting model load...');
             loadFishModel().catch(error => {
                 console.error('Failed to load model on startup:', error);
-                const isSafari = /Safari/i.test(navigator.userAgent || '') && !/Chrome/i.test(navigator.userAgent || '');
-                if (!modelWarningDisplayed && !isSafari) {
+                if (!modelWarningDisplayed && !isSafariBrowser()) {
                     updateProbabilityDisplay({
                         message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
                     });
@@ -767,8 +772,7 @@ async function checkFishAfterStroke() {
         };
         script.onerror = () => {
             console.error('Failed to load ONNX Runtime script');
-            const isSafari = /Safari/i.test(navigator.userAgent || '') && !/Chrome/i.test(navigator.userAgent || '');
-            if (!modelWarningDisplayed && !isSafari) {
+            if (!modelWarningDisplayed && !isSafariBrowser()) {
                 updateProbabilityDisplay({
                     message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
                 });
