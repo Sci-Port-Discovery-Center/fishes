@@ -676,6 +676,7 @@ function updateProbabilityDisplay({ fishProbability, isFish, message }) {
 
 // Updated verifyFishDoodle function to match new model output format
 async function verifyFishDoodle(canvas) {
+    const isSafari = /Safari/i.test(navigator.userAgent || '') && !/Chrome/i.test(navigator.userAgent || '');
     try {
         // Ensure model is ready before running inference
         if (!ortSession) {
@@ -715,7 +716,7 @@ async function verifyFishDoodle(canvas) {
         return { isFish, fishProbability, modelUnavailable: false };
     } catch (error) {
         console.warn('Fish verification unavailable; allowing submission with review:', error);
-        if (!modelWarningDisplayed) {
+        if (!modelWarningDisplayed && !isSafari) {
             updateProbabilityDisplay({
                 message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
             });
@@ -764,7 +765,8 @@ async function checkFishAfterStroke() {
             console.log('ONNX Runtime loaded, starting model load...');
             loadFishModel().catch(error => {
                 console.error('Failed to load model on startup:', error);
-                if (!modelWarningDisplayed) {
+                const isSafari = /Safari/i.test(navigator.userAgent || '') && !/Chrome/i.test(navigator.userAgent || '');
+                if (!modelWarningDisplayed && !isSafari) {
                     updateProbabilityDisplay({
                         message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
                     });
@@ -774,7 +776,8 @@ async function checkFishAfterStroke() {
         };
         script.onerror = () => {
             console.error('Failed to load ONNX Runtime script');
-            if (!modelWarningDisplayed) {
+            const isSafari = /Safari/i.test(navigator.userAgent || '') && !/Chrome/i.test(navigator.userAgent || '');
+            if (!modelWarningDisplayed && !isSafari) {
                 updateProbabilityDisplay({
                     message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
                 });
