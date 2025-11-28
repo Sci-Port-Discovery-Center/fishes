@@ -144,8 +144,11 @@ async function submitFish(artist, needsModeration = false) {
             localStorage.setItem('lastFishDate', today);
             localStorage.setItem('userId', result.data.userId);
 
-            // Redirect to the tank for both moderated and regular submissions
-            window.location.href = 'tank.html';
+            // Stay on the draw page and show a confirmation message
+            const successMessage = needsModeration
+                ? 'Thanks! Your fish will appear once it is reviewed.'
+                : 'Great swim! Your fish is headed to the tank soon.';
+            updateProbabilityDisplay({ message: successMessage });
 
             submissionSuccess = true;
         } else {
@@ -176,9 +179,8 @@ swimBtn.addEventListener('click', async () => {
 
     const needsModeration = !isFish || modelUnavailable;
 
-    try {
-        await submitFish(artist, needsModeration); // Pass moderation flag
-    } finally {
+    const submissionSuccess = await submitFish(artist, needsModeration); // Pass moderation flag
+    if (submissionSuccess) {
         resetDrawingState();
     }
 });
