@@ -19,6 +19,11 @@ const isLocalhost = window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1' ||
     window.location.hostname.includes('localhost');
 
+const isPrivateNetwork = /^10\./.test(window.location.hostname)
+    || /^192\.168\./.test(window.location.hostname)
+    || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname)
+    || window.location.hostname.endsWith('.local');
+
 // Check for URL parameter override (useful for testing)
 const urlParams = new URLSearchParams(window.location.search);
 const forceLocal = urlParams.get('local') === 'true';
@@ -34,10 +39,10 @@ if (configuredBackend) {
     BACKEND_URL = 'http://localhost:8080';
 } else if (forceProd) {
     BACKEND_URL = 'https://fishes-be-571679687712.northamerica-northeast1.run.app';
+} else if (isLocalhost || isPrivateNetwork) {
+    BACKEND_URL = `${window.location.protocol}//${window.location.hostname}:8080`;
 } else {
-    BACKEND_URL = isLocalhost
-        ? 'http://localhost:8080'
-        : 'https://fishes-be-571679687712.northamerica-northeast1.run.app';
+    BACKEND_URL = 'https://fishes-be-571679687712.northamerica-northeast1.run.app';
 }
 
 // Calculate fish score (upvotes - downvotes)
