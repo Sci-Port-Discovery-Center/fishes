@@ -49,7 +49,14 @@ app.set('trust proxy', true);
 
 function readData() {
   const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-  return JSON.parse(raw);
+  const data = JSON.parse(raw);
+
+  // Ensure tank metadata exists
+  if (!data.tankStatus) {
+    data.tankStatus = { lastClearedAt: null };
+  }
+
+  return data;
 }
 
 function writeData(data) {
@@ -190,6 +197,17 @@ app.get('/api/fish', (req, res) => {
   const page = items.slice(start, end).map(sanitizeFishPayload);
 
   res.json({ data: page, total: items.length });
+});
+
+app.get('/api/tank/status', (_req, res) => {
+  const db = readData();
+  const lastClearedAt = db.tankStatus?.lastClearedAt || null;
+  const visibleFish = db.fish.filter((f) => f.isVisible !== false && !f.deleted).length;
+
+  res.json({
+    lastClearedAt,
+    visibleFish
+  });
 });
 
 app.post('/api/vote', (req, res) => {
@@ -343,8 +361,14 @@ app.post('/admin/clear-tank', (req, res) => {
     return { ...fish, deleted: true, isVisible: false };
   });
 
+  db.tankStatus.lastClearedAt = new Date().toISOString();
+
   writeData(db);
-  res.json({ message: 'Tank cleared (saved fish preserved)', cleared });
+  res.json({
+    message: 'Tank cleared (saved fish preserved)',
+    cleared,
+    lastClearedAt: db.tankStatus.lastClearedAt
+  });
 });
 
 app.post('/admin/fish/:id/save', (req, res) => {
