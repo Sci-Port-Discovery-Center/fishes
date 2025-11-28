@@ -674,8 +674,14 @@ function updateProbabilityDisplay({ fishProbability, isFish, message }) {
     probDiv.style.color = isFish ? '#218838' : '#c0392b';
 }
 
+function isSafariBrowser() {
+    const ua = navigator.userAgent || '';
+    return /Safari/i.test(ua) && !/Chrome/i.test(ua);
+}
+
 // Updated verifyFishDoodle function to match new model output format
 async function verifyFishDoodle(canvas) {
+    const isSafari = isSafariBrowser();
     try {
         // Ensure model is ready before running inference
         if (!ortSession) {
@@ -715,7 +721,7 @@ async function verifyFishDoodle(canvas) {
         return { isFish, fishProbability, modelUnavailable: false };
     } catch (error) {
         console.warn('Fish verification unavailable; allowing submission with review:', error);
-        if (!modelWarningDisplayed) {
+        if (!modelWarningDisplayed && !isSafari) {
             updateProbabilityDisplay({
                 message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
             });
@@ -764,7 +770,7 @@ async function checkFishAfterStroke() {
             console.log('ONNX Runtime loaded, starting model load...');
             loadFishModel().catch(error => {
                 console.error('Failed to load model on startup:', error);
-                if (!modelWarningDisplayed) {
+                if (!modelWarningDisplayed && !isSafariBrowser()) {
                     updateProbabilityDisplay({
                         message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
                     });
@@ -774,7 +780,7 @@ async function checkFishAfterStroke() {
         };
         script.onerror = () => {
             console.error('Failed to load ONNX Runtime script');
-            if (!modelWarningDisplayed) {
+            if (!modelWarningDisplayed && !isSafariBrowser()) {
                 updateProbabilityDisplay({
                     message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
                 });
