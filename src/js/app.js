@@ -167,9 +167,11 @@ async function submitFish(artist, needsModeration = false) {
 
 swimBtn.addEventListener('click', async () => {
     // Check fish validity for warning purposes
-    const isFish = await verifyFishDoodle(canvas);
+    const { isFish, modelUnavailable } = await verifyFishDoodle(canvas);
     lastFishCheck = isFish;
-    showFishWarning(!isFish);
+    if (!modelUnavailable) {
+        showFishWarning(!isFish);
+    }
     
     // Get saved artist name or use Anonymous
     const savedArtist = localStorage.getItem('artistName');
@@ -181,6 +183,14 @@ swimBtn.addEventListener('click', async () => {
         showModal(`<div style='text-align:center;'>
             <div style='color:#ff6b35;font-weight:bold;margin-bottom:12px;'>Low Fish Score</div>
             <div style='margin-bottom:16px;line-height:1.4;'>i dont think this is a fish but you can submit it anyway and ill review it</div>
+            <div style='margin-bottom:16px;'>Sign your art:<br><input id='artist-name' value='${escapeHtml(defaultName)}' style='margin:10px 0 16px 0;padding:6px;width:80%;max-width:180px;'></div>
+            <button id='submit-fish' >Submit for Review</button>
+            <button id='cancel-fish' >Cancel</button>
+        </div>`, () => { });
+    } else if (modelUnavailable) {
+        showModal(`<div style='text-align:center;'>
+            <div style='color:#ff6b35;font-weight:bold;margin-bottom:12px;'>Fish checker unavailable</div>
+            <div style='margin-bottom:16px;line-height:1.4;'>Your browser doesn't support our fish checker, so we'll submit your drawing for manual review.</div>
             <div style='margin-bottom:16px;'>Sign your art:<br><input id='artist-name' value='${escapeHtml(defaultName)}' style='margin:10px 0 16px 0;padding:6px;width:80%;max-width:180px;'></div>
             <button id='submit-fish' >Submit for Review</button>
             <button id='cancel-fish' >Cancel</button>
@@ -199,7 +209,7 @@ swimBtn.addEventListener('click', async () => {
         const artist = document.getElementById('artist-name').value.trim() || 'Anonymous';
         // Save artist name to localStorage for future use
         localStorage.setItem('artistName', artist);
-        await submitFish(artist, !isFish); // Pass moderation flag
+        await submitFish(artist, !isFish || modelUnavailable); // Pass moderation flag
     };
     document.getElementById('cancel-fish').onclick = () => {
         document.querySelector('div[style*="z-index: 9999"]')?.remove();
@@ -513,6 +523,7 @@ let ortSession = null;
 let lastFishCheck = true;
 let isModelLoading = false;
 let modelLoadPromise = null;
+let modelWarningDisplayed = false;
 
 // Load ONNX model (make sure fish_doodle_classifier.onnx is in your public folder)
 async function loadFishModel() {
@@ -532,9 +543,39 @@ async function loadFishModel() {
     
     modelLoadPromise = (async () => {
         try {
-            ortSession = await window.ort.InferenceSession.create('fish_doodle_classifier.onnx');
-            console.log('Fish model loaded successfully');
-            return ortSession;
+            const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+            const isIsolated = typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : false;
+            const prefersWebGL = !hasSharedArrayBuffer || !isIsolated;
+
+            // Safari-friendly WASM settings to avoid SharedArrayBuffer requirements
+            const wasmOptions = {
+                executionProviders: ['wasm'],
+                graphOptimizationLevel: 'disabled',
+                enableCpuMemArena: false,
+                executionMode: 'sequential'
+            };
+
+            if (window.ort && window.ort.env && window.ort.env.wasm) {
+                window.ort.env.wasm.numThreads = 1;
+                window.ort.env.wasm.simd = hasSharedArrayBuffer && isIsolated;
+            }
+
+            try {
+                ortSession = await window.ort.InferenceSession.create('fish_doodle_classifier.onnx', wasmOptions);
+                console.log('Fish model loaded successfully (WASM)');
+                return ortSession;
+            } catch (wasmError) {
+                console.warn('WASM session failed, attempting fallback provider:', wasmError);
+                if (prefersWebGL) {
+                    ortSession = await window.ort.InferenceSession.create('fish_doodle_classifier.onnx', {
+                        executionProviders: ['webgl'],
+                        graphOptimizationLevel: 'disabled'
+                    });
+                    console.log('Fish model loaded successfully (WebGL fallback)');
+                    return ortSession;
+                }
+                throw wasmError;
+            }
         } catch (error) {
             console.error('Failed to load fish model:', error);
             throw error;
@@ -605,39 +646,7 @@ function preprocessCanvasForONNX(canvas) {
     return new window.ort.Tensor('float32', input, [1, 3, SIZE, SIZE]);
 }
 
-// Updated verifyFishDoodle function to match new model output format
-async function verifyFishDoodle(canvas) {
-    // Model should already be loaded, but check just in case
-    if (!ortSession) {
-        throw new Error('Fish model not loaded');
-    }
-    
-    // Use updated preprocessing
-    const inputTensor = preprocessCanvasForONNX(canvas);
-    
-    // Run inference
-    let feeds = {};
-    if (ortSession && ortSession.inputNames && ortSession.inputNames.length > 0) {
-        feeds[ortSession.inputNames[0]] = inputTensor;
-    } else {
-        feeds['input'] = inputTensor;
-    }
-    const results = await ortSession.run(feeds);
-    const outputKey = Object.keys(results)[0];
-    const output = results[outputKey].data;
-    
-    // The model outputs a single logit value
-    // During training: labels = 1 - labels, so fish = 0, not_fish = 1
-    // Model output > 0.5 means "not_fish", < 0.5 means "fish"
-    const logit = output[0];
-    const prob = 1 / (1 + Math.exp(-logit));  // Sigmoid activation
-    
-    // Since the model was trained with inverted labels (fish=0, not_fish=1)
-    // A low probability means it's more likely to be a fish
-    const fishProbability = 1 - prob;
-    const isFish = fishProbability >= 0.60;  // Threshold for fish classification
-        
-    // Update UI with fish probability
+function getProbabilityDiv() {
     let probDiv = document.getElementById('fish-probability');
     if (!probDiv) {
         probDiv = document.createElement('div');
@@ -646,7 +655,6 @@ async function verifyFishDoodle(canvas) {
         probDiv.style.margin = '10px 0 0 0';
         probDiv.style.fontWeight = 'bold';
         probDiv.style.fontSize = '1.1em';
-        probDiv.style.color = isFish ? '#218838' : '#c0392b';
         const drawCanvas = document.getElementById('draw-canvas');
         if (drawCanvas && drawCanvas.parentNode) {
             if (drawCanvas.nextSibling) {
@@ -659,9 +667,69 @@ async function verifyFishDoodle(canvas) {
             if (drawUI) drawUI.appendChild(probDiv);
         }
     }
+    return probDiv;
+}
+
+function updateProbabilityDisplay({ fishProbability, isFish, message }) {
+    const probDiv = getProbabilityDiv();
+    if (message) {
+        probDiv.textContent = message;
+        probDiv.style.color = '#c0392b';
+        return;
+    }
     probDiv.textContent = `Fish probability: ${(fishProbability * 100).toFixed(1)}%`;
     probDiv.style.color = isFish ? '#218838' : '#c0392b';
-    return isFish;
+}
+
+// Updated verifyFishDoodle function to match new model output format
+async function verifyFishDoodle(canvas) {
+    try {
+        // Ensure model is ready before running inference
+        if (!ortSession) {
+            await loadFishModel();
+        }
+
+        if (!ortSession) {
+            throw new Error('Fish model not loaded');
+        }
+
+        // Use updated preprocessing
+        const inputTensor = preprocessCanvasForONNX(canvas);
+
+        // Run inference
+        let feeds = {};
+        if (ortSession && ortSession.inputNames && ortSession.inputNames.length > 0) {
+            feeds[ortSession.inputNames[0]] = inputTensor;
+        } else {
+            feeds['input'] = inputTensor;
+        }
+        const results = await ortSession.run(feeds);
+        const outputKey = Object.keys(results)[0];
+        const output = results[outputKey].data;
+
+        // The model outputs a single logit value
+        // During training: labels = 1 - labels, so fish = 0, not_fish = 1
+        // Model output > 0.5 means "not_fish", < 0.5 means "fish"
+        const logit = output[0];
+        const prob = 1 / (1 + Math.exp(-logit));  // Sigmoid activation
+
+        // Since the model was trained with inverted labels (fish=0, not_fish=1)
+        // A low probability means it's more likely to be a fish
+        const fishProbability = 1 - prob;
+        const isFish = fishProbability >= 0.60;  // Threshold for fish classification
+
+        updateProbabilityDisplay({ fishProbability, isFish });
+        return { isFish, fishProbability, modelUnavailable: false };
+    } catch (error) {
+        console.warn('Fish verification unavailable; allowing submission with review:', error);
+        if (!modelWarningDisplayed) {
+            updateProbabilityDisplay({
+                message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
+            });
+            modelWarningDisplayed = true;
+        }
+        return { isFish: true, fishProbability: null, modelUnavailable: true };
+    }
 }
 
 // Show/hide fish warning and update background color
@@ -687,9 +755,11 @@ async function checkFishAfterStroke() {
         }
     }
     
-    const isFish = await verifyFishDoodle(canvas);
-    lastFishCheck = isFish;
-    showFishWarning(!isFish);
+    const result = await verifyFishDoodle(canvas);
+    lastFishCheck = result.isFish;
+    if (!result.modelUnavailable) {
+        showFishWarning(!result.isFish);
+    }
 }
 
 // Load ONNX Runtime Web from CDN if not present
@@ -697,11 +767,26 @@ async function checkFishAfterStroke() {
     if (!window.ort) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js';
-        script.onload = () => { 
+        script.onload = () => {
             console.log('ONNX Runtime loaded, starting model load...');
             loadFishModel().catch(error => {
                 console.error('Failed to load model on startup:', error);
+                if (!modelWarningDisplayed) {
+                    updateProbabilityDisplay({
+                        message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
+                    });
+                    modelWarningDisplayed = true;
+                }
             });
+        };
+        script.onerror = () => {
+            console.error('Failed to load ONNX Runtime script');
+            if (!modelWarningDisplayed) {
+                updateProbabilityDisplay({
+                    message: 'Fish checker unavailable in this browser. We\'ll review your submission manually.'
+                });
+                modelWarningDisplayed = true;
+            }
         };
         document.head.appendChild(script);
     } else {
