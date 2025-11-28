@@ -116,6 +116,8 @@ async function submitFish(artist, needsModeration = false) {
         style.textContent = `@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`;
         document.head.appendChild(style);
     }
+    let submissionSuccess = false;
+
     try {
         // Prepare headers with auth data if user is logged in
         const headers = {};
@@ -141,7 +143,7 @@ async function submitFish(artist, needsModeration = false) {
             const today = new Date().toDateString();
             localStorage.setItem('lastFishDate', today);
             localStorage.setItem('userId', result.data.userId);
-            
+
             // Show success message based on moderation status
             if (needsModeration) {
                 showModal(`<div style='text-align:center;'>
@@ -153,6 +155,8 @@ async function submitFish(artist, needsModeration = false) {
                 // Regular fish - go directly to tank
                 window.location.href = 'tank.html';
             }
+
+            submissionSuccess = true;
         } else {
             alert('Sorry, there was a problem uploading your fish. Please try again.');
         }
@@ -163,6 +167,8 @@ async function submitFish(artist, needsModeration = false) {
             submitBtn.textContent = 'Submit';
         }
     }
+
+    return submissionSuccess;
 }
 
 swimBtn.addEventListener('click', async () => {
@@ -172,48 +178,18 @@ swimBtn.addEventListener('click', async () => {
     if (!modelUnavailable) {
         showFishWarning(!isFish);
     }
-    
-    // Get saved artist name or use Anonymous
+
     const savedArtist = localStorage.getItem('artistName');
-    const defaultName = (savedArtist && savedArtist !== 'Anonymous') ? savedArtist : 'Anonymous';
-    
-    // Show different modal based on fish validity
-    if (!isFish) {
-        // Show moderation warning modal for low-scoring fish
-        showModal(`<div style='text-align:center;'>
-            <div style='color:#ff6b35;font-weight:bold;margin-bottom:12px;'>Low Fish Score</div>
-            <div style='margin-bottom:16px;line-height:1.4;'>i dont think this is a fish but you can submit it anyway and ill review it</div>
-            <div style='margin-bottom:16px;'>Sign your art:<br><input id='artist-name' value='${escapeHtml(defaultName)}' style='margin:10px 0 16px 0;padding:6px;width:80%;max-width:180px;'></div>
-            <button id='submit-fish' >Submit for Review</button>
-            <button id='cancel-fish' >Cancel</button>
-        </div>`, () => { });
-    } else if (modelUnavailable) {
-        showModal(`<div style='text-align:center;'>
-            <div style='color:#ff6b35;font-weight:bold;margin-bottom:12px;'>Fish checker unavailable</div>
-            <div style='margin-bottom:16px;line-height:1.4;'>Your browser doesn't support our fish checker, so we'll submit your drawing for manual review.</div>
-            <div style='margin-bottom:16px;'>Sign your art:<br><input id='artist-name' value='${escapeHtml(defaultName)}' style='margin:10px 0 16px 0;padding:6px;width:80%;max-width:180px;'></div>
-            <button id='submit-fish' >Submit for Review</button>
-            <button id='cancel-fish' >Cancel</button>
-        </div>`, () => { });
-    } else {
-        // Show normal submission modal for good fish
-        showModal(`<div style='text-align:center;'>
-            <div style='color:#27ae60;font-weight:bold;margin-bottom:12px;'>Great Fish!</div>
-            <div style='margin-bottom:16px;'>Sign your art:<br><input id='artist-name' value='${escapeHtml(defaultName)}' style='margin:10px 0 16px 0;padding:6px;width:80%;max-width:180px;'></div>
-            <button id='submit-fish' style='padding:6px 18px;background:#27ae60;color:white;border:none;border-radius:4px;'>Submit</button>
-            <button id='cancel-fish' style='padding:6px 18px;margin-left:10px;background:#ccc;border:none;border-radius:4px;'>Cancel</button>
-        </div>`, () => { });
+    const artist = savedArtist && savedArtist.trim() ? savedArtist.trim() : 'Anonymous';
+    localStorage.setItem('artistName', artist);
+
+    const needsModeration = !isFish || modelUnavailable;
+
+    try {
+        await submitFish(artist, needsModeration); // Pass moderation flag
+    } finally {
+        resetDrawingState();
     }
-    
-    document.getElementById('submit-fish').onclick = async () => {
-        const artist = document.getElementById('artist-name').value.trim() || 'Anonymous';
-        // Save artist name to localStorage for future use
-        localStorage.setItem('artistName', artist);
-        await submitFish(artist, !isFish || modelUnavailable); // Pass moderation flag
-    };
-    document.getElementById('cancel-fish').onclick = () => {
-        document.querySelector('div[style*="z-index: 9999"]')?.remove();
-    };
 });
 
 // Paint options UI
@@ -343,6 +319,23 @@ function undo() {
 function clearCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     checkFishAfterStroke();
+}
+
+function resetDrawingState() {
+    drawing = false;
+    undoStack = [];
+    currentColor = colors[0];
+    currentLineWidth = 6;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentLineWidth;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    showFishWarning(false);
+    const probDiv = document.getElementById('fish-probability');
+    if (probDiv) {
+        probDiv.textContent = 'Ready for a new fish!';
+        probDiv.style.color = '#333';
+    }
 }
 
 function flipCanvas() {
