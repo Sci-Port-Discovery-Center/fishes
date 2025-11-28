@@ -144,9 +144,13 @@ async function submitFish(artist, needsModeration = false) {
             localStorage.setItem('lastFishDate', today);
             localStorage.setItem('userId', result.data.userId);
 
-            // Redirect to the tank for both moderated and regular submissions
-            window.location.href = 'tank.html';
+            // Stay on the draw page, show a confirmation message, and reset the canvas
+            const successMessage = needsModeration
+                ? 'Thanks! Your fish will appear once it is reviewed.'
+                : 'Great swim! Your fish is headed to the tank soon.';
+            updateProbabilityDisplay({ message: successMessage });
 
+            resetDrawingState();
             submissionSuccess = true;
         } else {
             alert('Sorry, there was a problem uploading your fish. Please try again.');
@@ -176,11 +180,7 @@ swimBtn.addEventListener('click', async () => {
 
     const needsModeration = !isFish || modelUnavailable;
 
-    try {
-        await submitFish(artist, needsModeration); // Pass moderation flag
-    } finally {
-        resetDrawingState();
-    }
+    await submitFish(artist, needsModeration); // Pass moderation flag
 });
 
 // Paint options UI
