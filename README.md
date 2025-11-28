@@ -120,6 +120,16 @@ The app uses machine learning for real-time fish recognition:
 4. Deploy the static site (e.g., Vercel, Netlify, Firebase Hosting).
 5. Ensure the backend endpoint in `src/js/fish-utils.js` points to the deployed `fish-be` instance.
 
+### Local development server
+
+For offline testing you can run the bundled lightweight Node server that mimics the production REST API:
+
+1. `cd server`
+2. `npm install` (installs Express, multer, etc.)
+3. `npm run dev:server`
+
+This starts a backend on `http://localhost:8080` that supports uploads, fish listing, voting, reports, and the authentication flows used on the login/reset pages. When you load the frontend from `localhost`, `src/js/fish-utils.js` automatically points `BACKEND_URL` at this local server; you can also override it by setting `window.BACKEND_URL` or a `BACKEND_URL` entry in `localStorage`.
+
 ## Credits
 - AI model and training: [fish-trainer](https://github.com/aldenhallak/fish-trainer)
 - Backend: [fish-be](https://github.com/aldenhallak/fish-be)
