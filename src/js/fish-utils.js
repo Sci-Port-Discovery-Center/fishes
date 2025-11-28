@@ -41,8 +41,21 @@ const defaultLocalBackend = typeof window !== 'undefined' && window.location
     ? `${window.location.protocol}//${window.location.hostname}:8080`
     : null;
 
+function normalizeBackendUrl(url) {
+    if (typeof url !== 'string') return null;
+
+    // Only allow http/https URLs to avoid Safari errors like
+    // "The string did not match the expected pattern" when fetch
+    // receives an invalid scheme (e.g., file:// in standalone mode).
+    if (/^https?:\/\//i.test(url)) {
+        return url;
+    }
+
+    return null;
+}
+
 if (configuredBackend) {
-    BACKEND_URL = configuredBackend;
+    BACKEND_URL = normalizeBackendUrl(configuredBackend);
 } else if (forceLocal) {
     BACKEND_URL = 'http://localhost:8080';
 } else if (forceProd) {
@@ -50,7 +63,13 @@ if (configuredBackend) {
 } else if (isLocalhost || isPrivateNetwork) {
     BACKEND_URL = window.location.port ? sameHostBackend : defaultLocalBackend;
 } else {
-    BACKEND_URL = currentOrigin || 'https://fishes-be-571679687712.northamerica-northeast1.run.app';
+    BACKEND_URL = normalizeBackendUrl(currentOrigin) ||
+        'https://fishes-be-571679687712.northamerica-northeast1.run.app';
+}
+
+// Final safeguard: if the resolved value is still invalid, default to production.
+if (!normalizeBackendUrl(BACKEND_URL)) {
+    BACKEND_URL = 'https://fishes-be-571679687712.northamerica-northeast1.run.app';
 }
 
 // Calculate fish score (upvotes - downvotes)
