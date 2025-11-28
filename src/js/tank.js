@@ -434,6 +434,9 @@ let newestFishTimestamp = null;
 let newFishListener = null;
 let tankAutoRefreshInterval = null;
 const TANK_AUTO_REFRESH_MS = 60000;
+const TANK_STATUS_POLL_MS = 5000;
+let tankStatusPollInterval = null;
+let lastKnownTankClearTimestamp = null;
 let maxTankCapacity = 50; // Dynamic tank capacity controlled by slider
 let isUpdatingCapacity = false; // Prevent multiple simultaneous updates
 
@@ -852,11 +855,65 @@ function clearTankAutoRefreshInterval() {
     }
 }
 
+function clearTankStatusWatcher() {
+    if (tankStatusPollInterval) {
+        clearInterval(tankStatusPollInterval);
+        tankStatusPollInterval = null;
+    }
+}
+
 function startTankAutoRefresh(sortType) {
     clearTankAutoRefreshInterval();
     tankAutoRefreshInterval = setInterval(() => {
         loadFishIntoTank(sortType, true);
     }, TANK_AUTO_REFRESH_MS);
+}
+
+async function fetchTankStatus() {
+    const response = await fetch(`${BACKEND_URL}/api/tank/status`);
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch tank status: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+async function syncTankStatus({ reloadOnChange = true } = {}) {
+    const status = await fetchTankStatus();
+    const latestTimestamp = status.lastClearedAt ? new Date(status.lastClearedAt).getTime() : null;
+    const knownTimestamp = lastKnownTankClearTimestamp ? new Date(lastKnownTankClearTimestamp).getTime() : null;
+
+    if (latestTimestamp && (!knownTimestamp || latestTimestamp > knownTimestamp)) {
+        lastKnownTankClearTimestamp = status.lastClearedAt;
+
+        if (reloadOnChange) {
+            const selectedSort = document.getElementById('tank-sort')?.value || 'recent';
+            await loadFishIntoTank(selectedSort);
+        }
+    } else if (!latestTimestamp) {
+        lastKnownTankClearTimestamp = null;
+    } else {
+        lastKnownTankClearTimestamp = status.lastClearedAt;
+    }
+}
+
+async function startTankStatusWatcher() {
+    clearTankStatusWatcher();
+
+    try {
+        await syncTankStatus({ reloadOnChange: false });
+    } catch (error) {
+        console.error('Error initializing tank status watcher:', error);
+    }
+
+    tankStatusPollInterval = setInterval(async () => {
+        try {
+            await syncTankStatus();
+        } catch (error) {
+            console.error('Error polling tank status:', error);
+        }
+    }, TANK_STATUS_POLL_MS);
 }
 
 // Check for new fish using backend API instead of real-time listener
@@ -1087,6 +1144,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Load initial fish based on URL parameter or default
     await loadFishIntoTank(initialSort);
 
+    await startTankStatusWatcher();
+
     // Clean up listener when page is unloaded
     window.addEventListener('beforeunload', () => {
         if (newFishListener) {
@@ -1094,6 +1153,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             newFishListener = null;
         }
         clearTankAutoRefreshInterval();
+        clearTankStatusWatcher();
     });
 });
 
