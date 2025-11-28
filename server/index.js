@@ -68,6 +68,7 @@ function sanitizeFishPayload(fish) {
     downvotes: fish.downvotes || 0,
     isVisible: fish.isVisible !== false,
     deleted: fish.deleted || false,
+    isSaved: fish.isSaved || false,
     needsModeration: fish.needsModeration || false,
     userId: fish.userId
   };
@@ -80,6 +81,23 @@ function findUserByEmail(email) {
 
 function generateToken(user) {
   return Buffer.from(`${user.id}:${user.email}`).toString('base64');
+}
+
+function getUserFromRequest(req) {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.toLowerCase().startsWith('bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf-8');
+    const [id, email] = decoded.split(':');
+    const db = readData();
+    return db.users.find((u) => u.id === id && u.email === email) || null;
+  } catch (err) {
+    return null;
+  }
 }
 
 app.post('/uploadfish', upload.single('image'), (req, res) => {
@@ -102,6 +120,7 @@ app.post('/uploadfish', upload.single('image'), (req, res) => {
     needsModeration: needsModeration === 'true',
     isVisible: true,
     deleted: false,
+    isSaved: false,
     upvotes: 0,
     downvotes: 0,
     userId: userId || nanoid()
@@ -298,6 +317,37 @@ app.post('/auth/reset-password', (req, res) => {
   db.resetTokens = db.resetTokens.filter((t) => t.token !== token);
   writeData(db);
   res.json({ message: 'Password updated' });
+});
+
+app.post('/admin/clear-tank', (req, res) => {
+  const db = readData();
+  let cleared = 0;
+
+  db.fish = db.fish.map((fish) => {
+    if (fish.isSaved) return fish;
+
+    cleared += 1;
+    return { ...fish, deleted: true, isVisible: false };
+  });
+
+  writeData(db);
+  res.json({ message: 'Tank cleared (saved fish preserved)', cleared });
+});
+
+app.post('/admin/fish/:id/save', (req, res) => {
+  const { id } = req.params;
+  const { isSaved } = req.body || {};
+  const db = readData();
+  const fish = db.fish.find((f) => f.id === id);
+
+  if (!fish) {
+    return res.status(404).json({ error: 'Fish not found' });
+  }
+
+  fish.isSaved = Boolean(isSaved);
+  writeData(db);
+
+  res.json({ data: sanitizeFishPayload(fish) });
 });
 
 app.use((req, res) => {

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fish Tank Admin</title>
+    <link rel="stylesheet" href="src/css/style.css">
+    <link rel="stylesheet" href="src/css/admin.css">
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GS1GYSFBPX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-GS1GYSFBPX');
+    </script>
+</head>
+<body>
+    <div class="admin-page">
+        <header class="admin-header">
+            <div>
+                <h1>Fish Tank Admin</h1>
+                <p class="muted">Quick tools to save favorites and clear the public tank.</p>
+            </div>
+            <div class="admin-actions">
+                <button id="refresh-list" class="btn">↻ Refresh</button>
+                <button id="clear-tank" class="btn danger">🧹 Clear Tank</button>
+            </div>
+        </header>
+
+        <section class="admin-status" id="admin-status">Loading fish...</section>
+
+        <section class="admin-controls">
+            <div>
+                <label for="limit">Show</label>
+                <select id="limit">
+                    <option value="20">20</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                </select>
+                <span class="muted">most recent fish</span>
+            </div>
+            <div class="muted">Actions apply immediately to the tank.</div>
+        </section>
+
+        <section id="fish-list" class="fish-list"></section>
+    </div>
+
+    <script src="src/js/fish-utils.js"></script>
+    <script src="src/js/footer-utils.js"></script>
+    <script src="src/js/admin.js"></script>
+</body>
+</html>
