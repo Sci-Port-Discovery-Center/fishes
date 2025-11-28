@@ -1,8 +1,30 @@
 // Drawing logic
 const canvas = document.getElementById('draw-canvas');
 const ctx = canvas.getContext('2d');
-ctx.lineWidth = 6; // Make lines thicker for better visibility
 let drawing = false;
+
+function isTabletExperience() {
+    const ua = navigator.userAgent || '';
+    const viewportTablet = window.innerWidth >= 768 && window.innerWidth <= 1180;
+    const iPadUA = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 2);
+    const androidTabletUA = /Android/i.test(ua) && !/Mobile/i.test(ua);
+    return viewportTablet || iPadUA || androidTabletUA;
+}
+
+function applyTabletCanvasSizing() {
+    const TARGET_WIDTH = 600;
+    const TARGET_HEIGHT = 360;
+    canvas.width = TARGET_WIDTH;
+    canvas.height = TARGET_HEIGHT;
+    canvas.style.width = `${TARGET_WIDTH}px`;
+    canvas.style.height = `${TARGET_HEIGHT}px`;
+}
+
+if (isTabletExperience()) {
+    applyTabletCanvasSizing();
+}
+
+ctx.lineWidth = 6; // Make lines thicker for better visibility
 
 // Mouse events
 canvas.addEventListener('mousedown', (e) => {

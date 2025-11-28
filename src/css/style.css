@@ -5,6 +5,11 @@ body {
     padding: 10px;
 }
 
+#draw-ui {
+    margin: 0 auto;
+    max-width: 720px;
+}
+
 /* Canvas styles */
 #draw-canvas {
     border: 1px solid #000;
@@ -112,5 +117,76 @@ body {
         height: 20px !important;
         min-width: 20px !important;
         min-height: 20px !important;
+    }
+}
+
+/* Tablet-friendly layout and sizing */
+@media (min-width: 768px) and (max-width: 1180px) {
+    body {
+        font-size: 17px;
+        padding: 18px;
+    }
+
+    #draw-ui {
+        max-width: 840px;
+        padding: 12px 18px;
+    }
+
+    #drawing-section {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: center;
+    }
+
+    #drawing-section h1 {
+        font-size: 2.1em;
+        margin: 6px 0 2px;
+    }
+
+    #drawing-section h2 {
+        font-size: 1.35em;
+        margin: 0 0 6px;
+    }
+
+    #draw-canvas {
+        width: 600px;
+        height: 360px;
+    }
+
+    #paint-bar {
+        gap: 10px !important;
+        margin: 12px auto !important;
+        padding: 10px 14px !important;
+        font-size: 16px;
+        max-width: 90vw;
+    }
+
+    #paint-bar button {
+        font-size: 15px !important;
+        padding: 8px 12px !important;
+        height: auto !important;
+    }
+
+    #paint-bar button[style*="border-radius: 50%"] {
+        width: 26px !important;
+        height: 26px !important;
+        min-width: 26px !important;
+        min-height: 26px !important;
+    }
+
+    nav[role="navigation"] {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+        margin: 6px 0 12px;
+        width: 100%;
+    }
+
+    nav[role="navigation"] a,
+    nav[role="navigation"] button {
+        font-size: 16px;
+        padding: 8px 14px;
     }
 }
