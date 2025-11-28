@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const ENV_BASE_URL = process.env.BASE_URL;
 const DATA_FILE = path.join(__dirname, 'data', 'data.json');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
@@ -45,6 +45,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(UPLOAD_DIR));
+app.set('trust proxy', true);
 
 function readData() {
   const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -53,6 +54,18 @@ function readData() {
 
 function writeData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function resolveBaseUrl(req) {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const protocol = (forwardedProto ? forwardedProto.split(',')[0] : req.protocol) || 'http';
+  const host = req.get('host');
+
+  if (protocol && host) {
+    return `${protocol}://${host}`;
+  }
+
+  return ENV_BASE_URL || `http://localhost:${PORT}`;
 }
 
 function sanitizeFishPayload(fish) {
@@ -110,7 +123,7 @@ app.post('/uploadfish', upload.single('image'), (req, res) => {
 
   const now = new Date().toISOString();
   const fishId = nanoid();
-  const imageUrl = `${BASE_URL}/uploads/${req.file.filename}`;
+  const imageUrl = `${resolveBaseUrl(req)}/uploads/${req.file.filename}`;
 
   const fish = {
     id: fishId,
@@ -355,5 +368,7 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Local backend running on ${BASE_URL}`);
+  console.log(
+    `Local backend running on ${ENV_BASE_URL || `http://localhost:${PORT}`}`
+  );
 });
