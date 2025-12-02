@@ -188,6 +188,48 @@ app.post('/uploadfish', upload.single('image'), (req, res) => {
   });
 });
 
+app.post('/uploadfish/bulk', upload.array('images'), (req, res) => {
+  const db = readData();
+  const { artist = 'Anonymous', needsModeration = 'false', userId } = req.body;
+
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: 'No images uploaded' });
+  }
+
+  const baseUrl = getBaseUrl(req);
+  const needsModerationFlag = String(needsModeration) === 'true';
+  const sharedUserId = userId || nanoid();
+
+  const createdFish = req.files.map((file) => {
+    const now = new Date().toISOString();
+    const imageUrl = `${baseUrl}/uploads/${file.filename}`;
+
+    const fish = {
+      id: nanoid(),
+      Image: imageUrl,
+      CreatedAt: now,
+      artist,
+      needsModeration: needsModerationFlag,
+      isVisible: true,
+      deleted: false,
+      isSaved: false,
+      upvotes: 0,
+      downvotes: 0,
+      userId: sharedUserId
+    };
+
+    db.fish.push(fish);
+    return sanitizeFishPayload(fish, baseUrl);
+  });
+
+  writeData(db);
+
+  res.json({
+    uploaded: createdFish.length,
+    data: createdFish
+  });
+});
+
 app.get('/api/fish', (req, res) => {
   const db = readData();
   const baseUrl = getBaseUrl(req);

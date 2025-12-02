@@ -47,7 +47,22 @@
                 <span id="page-info" class="muted">Loading...</span>
                 <button id="next-page" class="btn" disabled>Next →</button>
             </div>
-            <div class="muted">Actions apply immediately to the tank.</div>
+            <div class="bulk-upload" aria-live="polite">
+                <div class="bulk-upload-actions">
+                    <button id="bulk-upload-btn" class="btn">📂 Bulk Upload</button>
+                    <input
+                        id="bulk-upload-input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        webkitdirectory
+                        directory
+                        class="hidden-file-input"
+                    />
+                </div>
+                <div class="muted small">Select a folder to upload multiple fish at once.</div>
+                <div id="bulk-upload-progress" class="muted">No bulk upload in progress.</div>
+            </div>
         </section>
 
         <section id="fish-list" class="fish-list"></section>
