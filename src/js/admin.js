@@ -143,6 +143,13 @@
             saveBtn.addEventListener('click', () => toggleSave(fish.id, !fish.isSaved));
             actions.appendChild(saveBtn);
 
+            const visibilityBtn = document.createElement('button');
+            visibilityBtn.className = 'btn secondary';
+            const isCurrentlyVisible = fish.deleted !== true && fish.isVisible !== false;
+            visibilityBtn.textContent = isCurrentlyVisible ? 'Hide' : 'Unhide';
+            visibilityBtn.addEventListener('click', () => toggleVisibility(fish.id, !isCurrentlyVisible));
+            actions.appendChild(visibilityBtn);
+
             meta.appendChild(actions);
             card.appendChild(meta);
             fishListEl.appendChild(card);
