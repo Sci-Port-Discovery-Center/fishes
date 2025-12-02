@@ -140,6 +140,13 @@
             saveBtn.addEventListener('click', () => toggleSave(fish.id, !fish.isSaved));
             actions.appendChild(saveBtn);
 
+            const visibilityBtn = document.createElement('button');
+            visibilityBtn.className = 'btn secondary';
+            const isCurrentlyVisible = fish.deleted !== true && fish.isVisible !== false;
+            visibilityBtn.textContent = isCurrentlyVisible ? 'Hide' : 'Unhide';
+            visibilityBtn.addEventListener('click', () => toggleVisibility(fish.id, !isCurrentlyVisible));
+            actions.appendChild(visibilityBtn);
+
             meta.appendChild(actions);
             card.appendChild(meta);
             fishListEl.appendChild(card);
@@ -182,6 +189,27 @@
         } catch (err) {
             console.error(err);
             setStatus('Failed to update saved state.', 'error');
+        }
+    }
+
+    async function toggleVisibility(fishId, isVisible) {
+        try {
+            const response = await fetch(`${BACKEND_URL}/admin/fish/${fishId}/visibility`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isVisible })
+            });
+
+            const result = await response.json();
+            if (result && result.data) {
+                setStatus(`Fish ${isVisible ? 'unhidden' : 'hidden'} successfully.`);
+                await loadFish();
+            } else {
+                setStatus('Unexpected response while updating visibility.', 'warn');
+            }
+        } catch (err) {
+            console.error(err);
+            setStatus('Failed to update visibility.', 'error');
         }
     }
 
