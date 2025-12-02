@@ -418,6 +418,25 @@ app.post('/admin/fish/:id/save', (req, res) => {
   res.json({ data: sanitizeFishPayload(fish, getBaseUrl(req)) });
 });
 
+app.post('/admin/fish/:id/visibility', (req, res) => {
+  const { id } = req.params;
+  const { isVisible } = req.body || {};
+  const db = readData();
+  const fish = db.fish.find((f) => f.id === id);
+
+  if (!fish) {
+    return res.status(404).json({ error: 'Fish not found' });
+  }
+
+  const nextVisibility = Boolean(isVisible);
+  fish.isVisible = nextVisibility;
+  fish.deleted = !nextVisibility;
+
+  writeData(db);
+
+  res.json({ data: sanitizeFishPayload(fish, getBaseUrl(req)) });
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
