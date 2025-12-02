@@ -4,6 +4,12 @@
     const clearBtn = document.getElementById('clear-tank');
     const refreshBtn = document.getElementById('refresh-list');
     const limitSelect = document.getElementById('limit');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    const pageInfoEl = document.getElementById('page-info');
+
+    let currentOffset = 0;
+    let totalCount = 0;
 
     function setStatus(message, tone = 'info') {
         statusEl.textContent = message;
@@ -17,20 +23,68 @@
     }
 
     async function loadFish() {
-        const limit = limitSelect.value || '50';
+        const limit = parseInt(limitSelect.value, 10) || 50;
         setStatus('Loading recent fish...');
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        pageInfoEl.textContent = 'Loading...';
         fishListEl.innerHTML = '';
 
         try {
-            const params = new URLSearchParams({ limit, orderBy: 'CreatedAt', order: 'desc' });
+            const params = new URLSearchParams({
+                limit: limit.toString(),
+                orderBy: 'CreatedAt',
+                order: 'desc',
+                offset: currentOffset.toString()
+            });
             const response = await fetch(`${BACKEND_URL}/api/fish?${params.toString()}`);
             const result = await response.json();
-            renderFish(result.data || []);
-            setStatus(`Loaded ${result.data?.length || 0} fish.`);
+
+            const fishData = result.data || [];
+            totalCount = typeof result.total === 'number' ? result.total : totalCount || fishData.length;
+            if (typeof result.offset === 'number') {
+                currentOffset = result.offset;
+            }
+
+            renderFish(fishData);
+            updatePagination(fishData.length, limit);
+            setStatus(buildStatusMessage(fishData.length));
         } catch (err) {
             console.error(err);
             setStatus('Failed to load fish list. Please try again.', 'error');
         }
+    }
+
+    function buildStatusMessage(count) {
+        if (!count) {
+            return 'No fish found.';
+        }
+
+        const start = totalCount ? Math.min(currentOffset + 1, totalCount) : currentOffset + 1;
+        const end = totalCount ? Math.min(currentOffset + count, totalCount) : currentOffset + count;
+        const totalText = totalCount ? ` of ${totalCount}` : '';
+        return `Showing ${start}-${end}${totalText}.`;
+    }
+
+    function updatePagination(loadedCount, limit) {
+        if (!loadedCount) {
+            pageInfoEl.textContent = 'No fish found.';
+            prevBtn.disabled = currentOffset <= 0;
+            nextBtn.disabled = true;
+            return;
+        }
+
+        const start = totalCount ? Math.min(currentOffset + 1, totalCount) : currentOffset + 1;
+        const end = totalCount ? Math.min(currentOffset + loadedCount, totalCount) : currentOffset + loadedCount;
+        const totalText = totalCount ? ` of ${totalCount}` : '';
+        pageInfoEl.textContent = `Showing ${start}-${end}${totalText}`;
+
+        prevBtn.disabled = currentOffset <= 0;
+
+        const reachedEnd = totalCount
+            ? end >= totalCount
+            : loadedCount < limit;
+        nextBtn.disabled = reachedEnd;
     }
 
     function renderFish(fishArray) {
@@ -92,6 +146,24 @@
         });
     }
 
+    function goToPreviousPage() {
+        const limit = parseInt(limitSelect.value, 10) || 50;
+        currentOffset = Math.max(currentOffset - limit, 0);
+        loadFish();
+    }
+
+    function goToNextPage() {
+        const limit = parseInt(limitSelect.value, 10) || 50;
+        const potentialOffset = currentOffset + limit;
+
+        if (totalCount && potentialOffset >= totalCount) {
+            return;
+        }
+
+        currentOffset = potentialOffset;
+        loadFish();
+    }
+
     async function toggleSave(fishId, isSaved) {
         try {
             const response = await fetch(`${BACKEND_URL}/admin/fish/${fishId}/save`, {
@@ -139,7 +211,12 @@
 
     clearBtn.addEventListener('click', clearTank);
     refreshBtn.addEventListener('click', loadFish);
-    limitSelect.addEventListener('change', loadFish);
+    limitSelect.addEventListener('change', () => {
+        currentOffset = 0;
+        loadFish();
+    });
+    prevBtn.addEventListener('click', goToPreviousPage);
+    nextBtn.addEventListener('click', goToNextPage);
 
     document.addEventListener('DOMContentLoaded', bootstrap);
 })();
