@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const CONFIGURED_BASE_URL = process.env.BASE_URL;
 const DATA_FILE = path.join(__dirname, 'data', 'data.json');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
@@ -36,6 +36,48 @@ const upload = multer({
     }
   })
 });
+
+function normalizeBaseUrl(url) {
+  if (!url) return null;
+  return url.replace(/\/$/, '');
+}
+
+function getBaseUrl(req) {
+  const configured = normalizeBaseUrl(CONFIGURED_BASE_URL);
+  if (configured) return configured;
+
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const protocol = (forwardedProto?.split(',')[0] || req.protocol || 'http').replace(/:$/, '');
+  const host = forwardedHost?.split(',')[0] || req.get('host');
+
+  if (host) {
+    return `${protocol}://${host}`;
+  }
+
+  return `http://localhost:${PORT}`;
+}
+
+function buildPublicImageUrl(imagePath, baseUrl) {
+  if (!imagePath) return imagePath;
+  const normalizedBase = normalizeBaseUrl(baseUrl) || '';
+
+  try {
+    const parsedBase = normalizedBase ? new URL(normalizedBase) : null;
+    const resolved = new URL(imagePath, normalizedBase || undefined);
+
+    const isLoopbackHost = ['localhost', '127.0.0.1', '::1'].includes(resolved.hostname);
+    if (parsedBase && (isLoopbackHost || !resolved.host)) {
+      resolved.protocol = parsedBase.protocol;
+      resolved.host = parsedBase.host;
+    }
+
+    return resolved.toString();
+  } catch (_err) {
+    const separator = imagePath.startsWith('/') ? '' : '/';
+    return `${normalizedBase}${separator}${imagePath}`;
+  }
+}
 
 app.use(cors({
   origin: '*',
@@ -62,12 +104,13 @@ function writeData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-function sanitizeFishPayload(fish) {
+function sanitizeFishPayload(fish, baseUrl) {
+  const publicImage = buildPublicImageUrl(fish.Image, baseUrl);
   return {
     id: fish.id,
-    Image: fish.Image,
-    image: fish.Image,
-    url: fish.Image,
+    Image: publicImage,
+    image: publicImage,
+    url: publicImage,
     artist: fish.artist || 'Anonymous',
     CreatedAt: fish.CreatedAt,
     createdAt: fish.CreatedAt,
@@ -117,7 +160,7 @@ app.post('/uploadfish', upload.single('image'), (req, res) => {
 
   const now = new Date().toISOString();
   const fishId = nanoid();
-  const imageUrl = `${BASE_URL}/uploads/${req.file.filename}`;
+  const imageUrl = `${getBaseUrl(req)}/uploads/${req.file.filename}`;
 
   const fish = {
     id: fishId,
@@ -147,6 +190,7 @@ app.post('/uploadfish', upload.single('image'), (req, res) => {
 
 app.get('/api/fish', (req, res) => {
   const db = readData();
+  const baseUrl = getBaseUrl(req);
   const {
     orderBy = 'CreatedAt',
     order = 'desc',
@@ -181,7 +225,7 @@ app.get('/api/fish', (req, res) => {
 
   const start = parseInt(offset, 10) || 0;
   const end = start + (parseInt(limit, 10) || 20);
-  const page = items.slice(start, end).map(sanitizeFishPayload);
+  const page = items.slice(start, end).map((fish) => sanitizeFishPayload(fish, baseUrl));
 
   res.json({ data: page, total: items.length });
 });
@@ -216,7 +260,7 @@ app.post('/api/vote', (req, res) => {
   }
 
   writeData(db);
-  res.json({ data: sanitizeFishPayload(fish) });
+  res.json({ data: sanitizeFishPayload(fish, getBaseUrl(req)) });
 });
 
 app.post('/api/report', (req, res) => {
@@ -371,7 +415,7 @@ app.post('/admin/fish/:id/save', (req, res) => {
   fish.isSaved = Boolean(isSaved);
   writeData(db);
 
-  res.json({ data: sanitizeFishPayload(fish) });
+  res.json({ data: sanitizeFishPayload(fish, getBaseUrl(req)) });
 });
 
 app.use((req, res) => {
@@ -379,5 +423,6 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Local backend running on ${BASE_URL}`);
+  const baseUrl = normalizeBaseUrl(CONFIGURED_BASE_URL) || `http://localhost:${PORT}`;
+  console.log(`Local backend running on ${baseUrl}`);
 });
