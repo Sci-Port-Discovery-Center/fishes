@@ -7,6 +7,9 @@
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
     const pageInfoEl = document.getElementById('page-info');
+    const bulkUploadBtn = document.getElementById('bulk-upload-btn');
+    const bulkUploadInput = document.getElementById('bulk-upload-input');
+    const bulkUploadProgress = document.getElementById('bulk-upload-progress');
 
     let currentOffset = 0;
     let totalCount = 0;
@@ -192,24 +195,56 @@
         }
     }
 
-    async function toggleVisibility(fishId, isVisible) {
+    function updateBulkProgress(message) {
+        if (bulkUploadProgress) {
+            bulkUploadProgress.textContent = message;
+        }
+    }
+
+    async function handleBulkUploadSelection(event) {
+        const files = Array.from(event.target?.files || []);
+
+        if (!files.length) {
+            updateBulkProgress('No files selected.');
+            return;
+        }
+
+        const totalFiles = files.length;
+        setStatus(`Uploading ${totalFiles} file${totalFiles > 1 ? 's' : ''}...`);
+        updateBulkProgress('Preparing upload...');
+
+        const formData = new FormData();
+        files.forEach((file) => formData.append('images', file, file.name));
+        formData.append('artist', 'Admin Bulk Upload');
+        formData.append('needsModeration', 'false');
+
         try {
-            const response = await fetch(`${BACKEND_URL}/admin/fish/${fishId}/visibility`, {
+            const response = await fetch(`${BACKEND_URL}/uploadfish/bulk`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ isVisible })
+                body: formData
             });
 
             const result = await response.json();
-            if (result && result.data) {
-                setStatus(`Fish ${isVisible ? 'unhidden' : 'hidden'} successfully.`);
-                await loadFish();
-            } else {
-                setStatus('Unexpected response while updating visibility.', 'warn');
+
+            if (!response.ok) {
+                const errorMessage = result?.error || 'Bulk upload failed.';
+                throw new Error(errorMessage);
             }
+
+            const uploadedCount = result?.uploaded ?? (result?.data?.length || 0);
+            const urls = (result?.data || []).map((item) => item.Image || item.image || item.url);
+            const firstUrlText = urls.length ? ` First URL: ${urls[0]}` : '';
+            setStatus(`Uploaded ${uploadedCount} fish successfully.`);
+            updateBulkProgress(`Completed: ${uploadedCount}/${totalFiles} files.${firstUrlText}`);
+            await loadFish();
         } catch (err) {
             console.error(err);
-            setStatus('Failed to update visibility.', 'error');
+            setStatus(err.message || 'Bulk upload failed.', 'error');
+            updateBulkProgress('Bulk upload failed. Please try again.');
+        } finally {
+            if (bulkUploadInput) {
+                bulkUploadInput.value = '';
+            }
         }
     }
 
@@ -245,6 +280,14 @@
     });
     prevBtn.addEventListener('click', goToPreviousPage);
     nextBtn.addEventListener('click', goToNextPage);
+
+    bulkUploadBtn?.addEventListener('click', () => {
+        if (!bulkUploadInput) return;
+        bulkUploadInput.value = '';
+        bulkUploadInput.click();
+    });
+
+    bulkUploadInput?.addEventListener('change', handleBulkUploadSelection);
 
     document.addEventListener('DOMContentLoaded', bootstrap);
 })();
