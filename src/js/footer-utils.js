@@ -7,7 +7,7 @@ function createFooter() {
     footer.style.cssText = 'text-align:center; margin:32px 0 12px 0; color:#888; font-size:1.05em;';
     
     footer.innerHTML = `
-        Made with <span style="color:#e25555;">hate</span> by <a href="https://fifteen.games">fifteen.games</a> | 
+        Made with <span style="color:#e25555;">love</span> by <a href="https://fifteen.games">fifteen.games</a> |
         <a href="https://github.com/aldenhallak/fishes">Source Code</a> | 
         <a href="https://twitter.com/AldenHallak" title="Follow @AldenHallak on Twitter">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;">
@@ -37,7 +37,7 @@ function createSpecialFooter() {
         | <a href="login.html" id="auth-link" style="color: #0066cc; text-decoration: underline;">login</a>
         | <a href="admin.html" style="color: #0066cc; text-decoration: underline;">admin</a>
         <br><br>
-        Made with <span style="color:#e25555;">hate</span> by <a href="https://fifteen.games" style="color: #0066cc; text-decoration: underline;">fifteen.games</a> | 
+        Made with <span style="color:#e25555;">love</span> by <a href="https://fifteen.games" style="color: #0066cc; text-decoration: underline;">fifteen.games</a> |
         <a href="https://github.com/aldenhallak/fishes" style="color: #0066cc; text-decoration: underline;">Source Code</a> | 
         <a href="https://twitter.com/AldenHallak" title="Follow @AldenHallak on Twitter" style="color: #0066cc; text-decoration: underline;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;">
