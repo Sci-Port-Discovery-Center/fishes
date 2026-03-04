@@ -12,6 +12,9 @@ const FOOD_FALL_SPEED = .01;
 const FOOD_DETECTION_RADIUS = 200; // Moderate detection radius
 const FOOD_LIFESPAN = 15000; // 15 seconds
 const FOOD_ATTRACTION_FORCE = 0.003; // Moderate attraction force
+const EDGE_ANTICIPATION_DISTANCE = 120;
+const VERTICAL_SHIFT_INTERVAL_MIN = 1600;
+const VERTICAL_SHIFT_INTERVAL_MAX = 3600;
 
 // Food pellet creation and management
 function createFoodPellet(x, y) {
@@ -347,7 +350,10 @@ function createFishObject({
     upvotes = 0,
     downvotes = 0,
     score = 0,
-    userId = null
+    userId = null,
+    verticalTargetY = null,
+    nextVerticalShiftAt = 0,
+    turnTilt = 0
 }) {
     return {
         fishCanvas,
@@ -369,6 +375,9 @@ function createFishObject({
         downvotes,
         score,
         userId,
+        verticalTargetY,
+        nextVerticalShiftAt,
+        turnTilt,
     };
 }
 
@@ -405,7 +414,10 @@ function loadFishImageToTank(imgUrl, fishData, onDone) {
                 upvotes: fishData.upvotes || 0,
                 downvotes: fishData.downvotes || 0,
                 score: fishData.score || 0,
-                userId: fishData.userId || fishData.UserId || null
+                userId: fishData.userId || fishData.UserId || null,
+                verticalTargetY: y,
+                nextVerticalShiftAt: Date.now() + (Math.random() * (VERTICAL_SHIFT_INTERVAL_MAX - VERTICAL_SHIFT_INTERVAL_MIN) + VERTICAL_SHIFT_INTERVAL_MIN),
+                turnTilt: 0
             });
 
             // Add entrance animation for new fish
@@ -1491,6 +1503,7 @@ let cacheUpdateCounter = 0;
 function animateFishes() {
     swimCtx.clearRect(0, 0, swimCanvas.width, swimCanvas.height);
     const time = Date.now() / 500;
+    const now = Date.now();
 
     // Update fish count display occasionally
     if (Math.floor(time) % 2 === 0) { // Every 2 seconds
@@ -1595,6 +1608,20 @@ function animateFishes() {
             // Always apply base swimming movement
             fish.vx += fish.speed * fish.direction * 0.1; // Continuous base movement
 
+            // Periodically pick a new vertical target so fish glide up and down more visibly
+            if (!fish.verticalTargetY || now >= fish.nextVerticalShiftAt) {
+                const topPadding = fish.height * 0.25;
+                const bottomLimit = Math.max(topPadding, swimCanvas.height - fish.height - topPadding);
+                fish.verticalTargetY = topPadding + Math.random() * Math.max(1, bottomLimit - topPadding);
+                fish.nextVerticalShiftAt = now + (Math.random() * (VERTICAL_SHIFT_INTERVAL_MAX - VERTICAL_SHIFT_INTERVAL_MIN) + VERTICAL_SHIFT_INTERVAL_MIN);
+            }
+
+            if (typeof fish.verticalTargetY === 'number') {
+                const verticalDelta = fish.verticalTargetY - fish.y;
+                const verticalNudge = Math.max(-0.12, Math.min(0.12, verticalDelta * 0.0025));
+                fish.vy += verticalNudge;
+            }
+
             // Apply food attraction using cached data
             if (foodDetectionData.nearestFood) {
                 const dx = foodDetectionData.nearestFood.x - foodDetectionData.fishCenterX;
@@ -1625,15 +1652,32 @@ function animateFishes() {
             let hitEdge = false;
 
             // Left and right edges
+            const distanceToEdge = fish.direction === 1
+                ? swimCanvas.width - (fish.x + fish.width)
+                : fish.x;
+            const movingTowardEdge = (fish.direction === 1 && fish.vx >= 0) || (fish.direction === -1 && fish.vx <= 0);
+
+            // Start turning behavior before impact so fish visibly "look" and steer away early
+            if (movingTowardEdge && distanceToEdge < EDGE_ANTICIPATION_DISTANCE) {
+                const anticipation = 1 - Math.max(0, distanceToEdge) / EDGE_ANTICIPATION_DISTANCE;
+                fish.turnTilt = fish.direction * anticipation * 0.35;
+                fish.vx -= fish.direction * fish.speed * 0.22 * anticipation;
+                fish.vy += Math.sin(time + fish.phase) * 0.08 * anticipation;
+            } else {
+                fish.turnTilt *= 0.85;
+            }
+
             if (fish.x <= 0) {
                 fish.x = 0;
                 fish.direction = 1; // Face right
                 fish.vx = Math.abs(fish.vx); // Ensure velocity points right
+                fish.turnTilt = 0;
                 hitEdge = true;
             } else if (fish.x >= swimCanvas.width - fish.width) {
                 fish.x = swimCanvas.width - fish.width;
                 fish.direction = -1; // Face left
                 fish.vx = -Math.abs(fish.vx); // Ensure velocity points left
+                fish.turnTilt = 0;
                 hitEdge = true;
             }
 
@@ -1767,6 +1811,8 @@ function drawWigglingFish(fish, x, y, direction, time, phase) {
 
     for (let i = 0; i < w; i++) {
         let isTail, t, wiggle, drawCol, drawX;
+        const bodyCurve = Math.sin((i / Math.max(1, w - 1)) * Math.PI);
+        const lookOffsetY = bodyCurve * (fish.turnTilt || 0) * 8;
         if (direction === 1) {
             isTail = i < tailEnd;
             t = isTail ? (tailEnd - i - 1) / (tailEnd - 1) : 0;
@@ -1781,7 +1827,7 @@ function drawWigglingFish(fish, x, y, direction, time, phase) {
             drawX = x + i - wiggle;
         }
         swimCtx.save();
-        swimCtx.translate(drawX, y);
+        swimCtx.translate(drawX, y + lookOffsetY);
 
         // Apply scale for entering fish
         if (fish.isEntering && scale !== 1) {
